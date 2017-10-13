@@ -151,6 +151,14 @@ cdef class device:
       if not r:
           return U(buff)
 
+  def get_indexed_string(self, string_index):
+      if self._c_hid == NULL:
+          raise ValueError('not open')
+      cdef wchar_t buff[255]
+      cdef int r = hid_get_indexed_string(self._c_hid, string_index, buff, 255)
+      if not r:
+          return U(buff)
+
   def send_feature_report(self, buff):
       if self._c_hid == NULL:
           raise ValueError('not open')
