@@ -6,3 +6,5 @@ hidraw.c
 .eggs/
 hidapi.egg-info/
 .tox/
+.vscode/
+*.pyd
