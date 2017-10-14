@@ -1,6 +1,7 @@
 import sys
 from chid cimport *
 from libc.stddef cimport wchar_t, size_t
+from libc.string cimport memcpy, memset
 from cpython.unicode cimport PyUnicode_FromUnicode
 
 cdef extern from "ctype.h":
@@ -151,7 +152,7 @@ cdef class device:
       if not r:
           return U(buff)
 
-  def get_indexed_string(self, string_index):
+  def get_indexed_string(self, int string_index):
       if self._c_hid == NULL:
           raise ValueError('not open')
       cdef wchar_t buff[255]
@@ -169,16 +170,25 @@ cdef class device:
       else:
           buff = bytes(buff)
       cdef hid_device * c_hid = self._c_hid
-      cdef unsigned char* cbuff = buff # covert to c string
+      cdef unsigned char* cbuff = buff # convert to c string
       cdef size_t c_buff_len = len(buff)
       cdef int result
       with nogil:
         result = hid_send_feature_report(c_hid, cbuff, c_buff_len)
       return result
 
-  def get_feature_report(self, int report_num, int max_length):
+  def get_feature_report(self, buff, int max_length):
       if self._c_hid == NULL:
           raise ValueError('not open')
+
+      # convert to bytes
+      if sys.version_info < (3, 0):
+          buff = ''.join(map(chr, buff))
+      else:
+          buff = bytes(buff)
+      cdef unsigned char* cinbuff = buff # convert to c string
+      cdef size_t c_inbuff_len = len(buff)
+
       cdef hid_device * c_hid = self._c_hid
       cdef unsigned char lbuff[16]
       cdef unsigned char* cbuff
@@ -188,9 +198,14 @@ cdef class device:
           cbuff = lbuff
       else:
           cbuff = <unsigned char *>malloc(max_length)
-      cbuff[0] = report_num
+
+      cdef size_t copylen = c_inbuff_len if c_inbuff_len<max_length else c_max_length;
+
+      memcpy(cbuff, cinbuff, copylen);
+      memset(cbuff + copylen, 0, max_length-copylen);
+
       with nogil:
-        n = hid_get_feature_report(c_hid, cbuff, c_max_length)
+        n = hid_get_feature_report(c_hid, cbuff, c_max_length);
       res = []
       for i in range(n):
           res.append(cbuff[i])
